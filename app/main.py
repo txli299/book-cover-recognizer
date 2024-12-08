@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify
 from ocr import extract_book_title
 from query import search_book_by_title
@@ -17,8 +18,12 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
 
+    # Ensure the temp directory exists
+    temp_dir = "app/temp"
+    os.makedirs(temp_dir, exist_ok=True)
+
     # Save uploaded file
-    file_path = f"app/temp/{file.filename}"
+    file_path = os.path.join(temp_dir, file.filename)
     file.save(file_path)
 
     # Extract book title using OCR
