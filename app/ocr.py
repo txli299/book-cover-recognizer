@@ -1,22 +1,23 @@
 import pytesseract
 import cv2
 
-def extract_book_title(image_path):
+
+def extract_text(image_path):
+    """
+    Extract text from the image using OCR.
+    Args:
+        image_path (str): Path to the image file.
+    Returns:
+        str: Extracted text or None if extraction fails.
+    """
     try:
         # Load the image
         img = cv2.imread(image_path)
 
         # Apply OCR
         text = pytesseract.image_to_string(img)
-        print("Extracted Text:")
         print(text)
-        lines = text.split('\n')
-
-        # Return the first non-empty line as a potential book title
-        for line in lines:
-            line = line.strip()
-            if line:
-                return line
+        return text.strip()
     except Exception as e:
         print(f"Error during OCR: {e}")
-    return None
+        return None
