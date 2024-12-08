@@ -1,7 +1,6 @@
 import pytesseract
 import cv2
 
-
 def extract_book_title(image_path):
     try:
         # Load the image
