@@ -6,7 +6,7 @@ from query import search_book_by_title
 app = Flask(__name__)
 
 # Path to JSON database
-JSON_FILE_PATH = "app/books.json"
+JSON_FILE_PATH = "bookMeta.jsonl.json"
 
 
 # OCR API: Extract text from an uploaded image
@@ -41,7 +41,6 @@ def search_book():
     data = request.get_json()
     if not data or 'title' not in data:
         return jsonify({'error': 'No title provided'}), 400
-
     title = data['title']
     book_info = search_book_by_title(title, JSON_FILE_PATH)
     if book_info:
