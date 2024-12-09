@@ -1,4 +1,6 @@
 app/temp/
+img/app/temp/
+app/app/temp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
