@@ -48,17 +48,6 @@ Extract text from an uploaded image using Optical Character Recognition (OCR).
 #### Response:
 - **200 OK**:
   ```json
-  {"extracted_text": ["line1", "line2", ...]}
-
-### 1. `/search` (POST)
-Search for book information using a title.
-
-#### Request:
-- **Method**: `POST`
-- **Form Data**:
-  - `title`: Book Title
-
-#### Response:
-- **200 OK**:
-  ```json
-  {"title": "Book Title", "author": "Author Name", ...}
+  {"extracted_text": ["line1", "line2", ...],
+  "matches": [BooksMetaData]
+  }
