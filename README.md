@@ -22,10 +22,17 @@ This application scans book covers to extract the title and fetches book details
      curl -X POST -F "file=@path_to_book_cover.jpg" http://localhost:5001/upload
      ```
 
+### Additional Setup for Google Vision API
+
+1. Enable the Google Vision API in your Google Cloud project.
+2. Download the JSON key file for your Google Cloud service account and rename it to `google_credentials.json`.
+3. Place the `google_credentials.json` file in the root directory of the project.
+
 ### Dependencies
 * Flask: API framework
 * OpenCV: Image processing
 * pytesseract: OCR engine
+* Google Vision API: OCR engine
 
 
 ## Endpoints

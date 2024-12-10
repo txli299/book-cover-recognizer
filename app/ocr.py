@@ -1,92 +1,128 @@
-import pytesseract
-import cv2
 import re
+import spacy
+import json
+import unicodedata
+from google.cloud import vision
+from query import search_book_by_title
 
+nlp = spacy.load("en_core_web_sm")
 
-# def extract_text(image_path):
-#     """
-#     Extract and clean text from the image using OCR.
-#     Args:
-#         image_path (str): Path to the image file.
-#     Returns:
-#         list: List of cleaned lines or None if extraction fails.
-#     """
-#     try:
-#         # Load the image
-#         img = cv2.imread(image_path)
-#         print(f"Original Dimensions: {img.shape}")
-#
-#         # Apply OCR
-#         raw_text = pytesseract.image_to_string(img, config="--psm 3")
-#         print(raw_text)
-#         # Split text into lines and clean each line
-#         lines = raw_text.split('\n')
-#         cleaned_lines = [
-#             # Clean and strip non-printable characters
-#             re.sub(r'[^\x20-\x7E]', '', line).strip()
-#             for line in lines if line.strip()  # Remove empty lines
-#         ]
-#
-#         print("Extracted Lines:")
-#         for line in cleaned_lines:
-#             print(line)
-#
-#         return cleaned_lines if cleaned_lines else None
-#     except Exception as e:
-#         print(f"Error during OCR: {e}")
-#         return None
-
-def preprocess_image(image_path):
+def normalize_text(text):
     """
-    Preprocess the image to improve OCR accuracy.
-    Args:
-        image_path (str): Path to the image file.
-    Returns:
-        numpy.ndarray: Preprocessed image.
+    Normalize text by:
+    - Unicode normalization to NFD
+    - Removing diacritical marks
+    - Lowercasing
+    - Stripping whitespace
     """
-    # Load the image
-    img = cv2.imread(image_path)
-
-    # Convert to grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Apply GaussianBlur to remove noise
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Apply thresholding to make the text stand out
-    _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    return thresh
+    text = unicodedata.normalize('NFD', text)
+    text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')
+    text = text.lower().strip()
+    return text
 
 def extract_text(image_path):
     """
-    Extract and clean text from the image using OCR.
-    Args:
-        image_path (str): Path to the image file.
-    Returns:
-        list: List of cleaned lines or None if extraction fails.
+    Use Google Cloud Vision API to extract text from an image.
+    Make sure you have set GOOGLE_APPLICATION_CREDENTIALS environment variable.
+
+    Returns: A list of lines of extracted text.
     """
-    try:
-        # Preprocess the image
-        preprocessed_img = preprocess_image(image_path)
+    client = vision.ImageAnnotatorClient()
 
-        # Apply OCR
-        raw_text = pytesseract.image_to_string(preprocessed_img, config="--psm 3")
-        print(f"Raw OCR Output:\n{raw_text}")
+    with open(image_path, 'rb') as image_file:
+        content = image_file.read()
 
-        # Split text into lines and clean each line
-        lines = raw_text.split('\n')
-        cleaned_lines = [
-            # Clean and strip non-printable characters
-            re.sub(r'[^\x20-\x7E]', '', line).strip()
-            for line in lines if line.strip()  # Remove empty lines
-        ]
+    image = vision.Image(content=content)
+    response = client.text_detection(image=image)
 
-        print("Extracted and Cleaned Lines:")
-        for line in cleaned_lines:
-            print(line)
+    if response.error.message:
+        raise Exception(f'Vision API Error: {response.error.message}')
 
-        return cleaned_lines if cleaned_lines else None
-    except Exception as e:
-        print(f"Error during OCR: {e}")
-        return None
+    annotations = response.text_annotations
+    if not annotations:
+        return []
+
+    full_text = annotations[0].description
+    raw_lines = full_text.split('\n')
+    extracted_lines = [line.strip() for line in raw_lines if len(line.strip()) > 1]
+
+    return extracted_lines
+
+def find_book_info_from_extracted_text(text_lines, database_path):
+    """
+    Given OCR extracted lines, try to find matching book info from the database.
+    Improvement: Now using exact normalized equality checks instead of substring matches.
+
+    For each line:
+    - Normalize it.
+    - Use search_book_by_title as an initial filter (based on substring in original code).
+    - Then re-check matches by strict equality:
+      If normalized line == normalized title OR normalized line == normalized author, consider it a match.
+    """
+    matches_info = []
+    for line in text_lines:
+        norm_line = normalize_text(line)
+        
+        # Initial search using substring match (as implemented in query.py)
+        matched_books = search_book_by_title(line, database_path)
+        if matched_books is None:
+            continue
+
+        final_matched_books = []
+        for book in matched_books:
+            book_title = normalize_text(book.get("title", ""))
+            book_author = normalize_text(book.get("author", ""))
+            
+            # Strict equality check
+            # Only consider it a match if norm_line exactly equals the title or the author
+            if norm_line == book_title or norm_line == book_author:
+                final_matched_books.append(book)
+
+        # If no books found in the initial filtered set, try scanning the entire file again
+        # This is a fallback approach if needed.
+        if not final_matched_books:
+            try:
+                with open(database_path, 'r') as f:
+                    for b_line in f:
+                        try:
+                            b_book = json.loads(b_line.strip())
+                            b_title = normalize_text(b_book.get("title", ""))
+                            b_author = normalize_text(b_book.get("author", ""))
+
+                            if norm_line == b_title or norm_line == b_author:
+                                final_matched_books.append(b_book)
+                        except:
+                            pass
+            except:
+                pass
+
+        # Build final result list
+        for book in final_matched_books:
+            book_info = {
+                "title": book.get("title", ""),
+                "subtitle": book.get("subtitle", ""),
+                "author": book.get("author", ""),
+                "publisher": book.get("publisher", []),
+                "isbn10": book.get("isbn10", []),
+                "isbn13": book.get("isbn13", []),
+                "synopsis": book.get("synopsis", "")
+            }
+            matches_info.append(book_info)
+
+    return matches_info
+
+def extract_and_match_titles(image_path, database_path):
+    """
+    Extract lines from image using OCR and then match them against the database.
+    Returns a dict:
+    {
+        "extracted_text": [...],
+        "matches": [ {...}, {...} ]
+    }
+    """
+    extracted_text = extract_text(image_path)
+    matched_books = find_book_info_from_extracted_text(extracted_text, database_path)
+    return {
+        "extracted_text": extracted_text,
+        "matches": matched_books
+    }
