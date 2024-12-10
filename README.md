@@ -1,6 +1,8 @@
  # Book Cover Recognizer
-
+ 
 This application scans book covers to extract the title and fetches book details from a JSON database.
+
+## Demo video link: [link](https://northeastern.zoom.us/rec/play/Sa5PfkxTHj96GYzc9CKX-x7bOQXKZkYrMy7WDz9ZQ9Gmm0ukAL133HuinuUFS9k0n_vVIk1u31_qxKkL.-ZOJnCm71hXcTR8Z?canPlayFromShare=true&from=share_recording_detail&startTime=1733801080000&componentName=rec-play&originRequestUrl=https%3A%2F%2Fnortheastern.zoom.us%2Frec%2Fshare%2FOwHtWy92DqRWMAQ-RtGdXNCoKlbPIYze-IYuGmhPLdlQYyD3ii0VuK_vokDtojD4.W60FT21_SWQWmY4e%3FstartTime%3D1733801080000)
 
 ## How to Run
 
